@@ -1,0 +1,29 @@
+沈砚 QQ 记忆系统（Windows）——快速上手
+=====================================
+
+目前你的 Docker 还提示 WSL 未安装。必须先用管理员 PowerShell 执行：
+  wsl --install
+重启 Windows，打开 Docker Desktop，确定它能运行。
+
+1. 在普通 PowerShell 创建目录：
+   mkdir "$HOME\qq-deepseek" -Force
+   cd "$HOME\qq-deepseek"
+2. 下载官方文件：
+   Invoke-WebRequest "https://raw.githubusercontent.com/NapNeko/NapCat-Docker/main/compose/astrbot.yml" -OutFile astrbot.yml
+3. 把本压缩包里的全部内容解压到同一个 qq-deepseek 目录。
+4. 复制配置文件并编辑：
+   Copy-Item .\.env.shenyan.example .\.env.shenyan
+   notepad .\.env.shenyan
+   填自己的 DeepSeek API Key，把 GATEWAY_KEY 换为长随机密码。
+5. 启动三个服务：
+   docker compose -f astrbot.yml -f shenyan-compose.yml up -d --build
+6. 登录 AstrBot（http://localhost:6185），设置QQ私聊白名单，只允许自己的QQ账号。
+7. 在 AstrBot Providers 新建 OpenAI Compatible：
+   API Base URL: http://shenyan-memory:8000/v1
+   API Key: 与 .env.shenyan 的 GATEWAY_KEY 相同
+   Model: shenyan
+   Config → AI → Model → shenyan → 保存。
+8. 用自己的QQ给机器人小号发消息。发送「沈砚记忆待审」查看候选。
+
+完整说明和风险提示请读 README_从这里开始.md。
+注意：此包未在你的电脑上实际部署，也没使用你的真实API Key联网测试。

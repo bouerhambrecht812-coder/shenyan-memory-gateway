@@ -1,0 +1,34 @@
+# 演示层：一个静态页 + 一个代理，跑在原来的 astrbot_network 上。
+#
+# 用法（三个文件一起起，网络才解析得到）：
+#   cd ~/qq-bot
+#   docker compose -f astrbot.yml -f shenyan-compose.yml -f web-demo/compose.demo.yml up -d --build
+#
+# 变量从 ../.env.shenyan 读，不另外维护第二份密钥。
+
+services:
+  shenyan-web:
+    build:
+      context: .
+      dockerfile: proxy/Dockerfile
+    container_name: shenyan-web
+    restart: unless-stopped
+    env_file:
+      - ../.env.shenyan
+    environment:
+      GATEWAY_URL: http://shenyan-memory:8000
+      STATIC_DIR: /app/static
+    ports:
+      - "8080:8080"
+    networks:
+      - astrbot_network
+    depends_on:
+      shenyan-memory:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz',timeout=5)"]
+      interval: 30s
+      timeout: 8s
+      retries: 3

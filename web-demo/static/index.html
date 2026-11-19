@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>沈砚 · 记忆网关演示</title>
+<style>
+:root{
+  --bg:#14130f; --card:#1d1b15; --card2:#262218; --line:#312c22;
+  --text:#ece6d8; --muted:#948c7a; --gold:#c8a44a; --green:#7aa06f; --red:#b56b5f;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;overscroll-behavior:none;
+}
+.app{height:100dvh;display:flex;flex-direction:column}
+
+/* 顶栏 */
+.bar{
+  flex:none;height:54px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;border-bottom:1px solid var(--line);
+  background:rgba(20,19,15,.92);backdrop-filter:blur(10px);position:relative;z-index:3;
+}
+.who{display:flex;align-items:center;gap:8px;min-width:0}
+.who b{font-size:16px;letter-spacing:.04em}
+.who .sub{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none;transition:.3s}
+.dot.ok{background:var(--green);box-shadow:0 0 0 3px rgba(122,160,111,.15)}
+.dot.bad{background:var(--red)}
+
+.chip{
+  display:none;align-items:center;gap:6px;height:32px;padding:0 12px;
+  border-radius:16px;border:1px solid var(--line);background:var(--card);
+  color:var(--text);font-size:13px;cursor:pointer;font-family:inherit;
+}
+.chip em{
+  font-style:normal;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
+  background:var(--gold);color:#201d14;font-size:11px;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.chip em.zero{background:#3a352a;color:var(--muted)}
+
+/* 主体 */
+.main{flex:1;display:flex;min-height:0;position:relative}
+.chat{flex:1;display:flex;flex-direction:column;min-width:0}
+.log{
+  flex:1;overflow-y:auto;padding:18px 16px 8px;display:flex;flex-direction:column;
+  gap:9px;scroll-behavior:smooth;
+}
+.log::-webkit-scrollbar{width:6px}
+.log::-webkit-scrollbar-thumb{background:#332e24;border-radius:3px}
+
+.msg{
+  max-width:84%;padding:9px 13px;border-radius:14px;white-space:pre-wrap;
+  word-break:break-word;font-size:15px;line-height:1.62;
+  animation:in .22s cubic-bezier(.22,.8,.3,1) both;
+}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.msg.bot{
+  align-self:flex-start;background:var(--card);border:1px solid var(--line);
+  border-bottom-left-radius:5px;
+}
+.msg.me{
+  align-self:flex-end;background:#2d281f;border:1px solid #3b3427;
+  border-bottom-right-radius:5px;
+}
+.msg.sys{
+  align-self:center;background:none;border:none;color:var(--muted);
+  font-size:12.5px;max-width:92%;text-align:center;padding:2px 0;
+}
+.msg.err{align-self:center;color:var(--red);font-size:13px;background:none;border:none}
+
+.msg.sticker{
+  align-self:flex-start;background:none;border:none;padding:0;max-width:140px;
+}
+.msg.sticker img{width:120px;height:120px;display:block;border-radius:14px}
+.msg.voice{
+  display:flex;align-items:center;gap:9px;cursor:pointer;
+  background:var(--card);border:1px solid var(--line);border-bottom-left-radius:5px;
+  align-self:flex-start;
+}
+.msg.voice .ic{color:var(--gold);font-size:14px;flex:none}
+.msg.voice .pvw{font-size:13.5px;color:var(--muted)}
+
+.wchip{
+  display:none;align-items:center;gap:5px;font-size:11px;color:var(--muted);
+  border:1px solid var(--line);border-radius:9px;padding:1px 7px;margin-left:8px;
+  cursor:help;white-space:nowrap;
+}
+.wchip.on{display:inline-flex}
+.wchip i{width:5px;height:5px;border-radius:50%;background:var(--gold);display:block}
+
+/* 演示模式提示 */
+.mockbar{
+  flex:none;background:#2a2118;color:#e2c98d;border-bottom:1px solid #4a3a1c;
+  font-size:12.5px;padding:7px 14px;text-align:center;letter-spacing:.03em;
+}
+.mockbar[hidden]{display:none}
+.mockbar b{font-weight:600;color:#f0d9a0}
+
+.typing{display:flex;gap:4px;padding:13px}
+.typing i{
+  width:5px;height:5px;border-radius:50%;background:var(--muted);
+  animation:blink 1.2s infinite both;
+}
+.typing i:nth-child(2){animation-delay:.18s}
+.typing i:nth-child(3){animation-delay:.36s}
+@keyframes blink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+
+/* 输入区 */
+.composer{
+  flex:none;display:flex;gap:8px;align-items:flex-end;padding:10px 14px;
+  padding-bottom:calc(10px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--line);background:var(--bg);
+}
+.composer textarea{
+  flex:1;resize:none;max-height:120px;min-height:42px;padding:10px 13px;
+  border-radius:12px;border:1px solid var(--line);background:var(--card);
+  color:var(--text);font:inherit;line-height:1.4;outline:none;
+}
+.composer textarea:focus{border-color:#4a4130}
+.composer button{
+  flex:none;height:42px;padding:0 18px;border-radius:12px;border:none;
+  background:var(--gold);color:#201d14;font:inherit;font-weight:600;cursor:pointer;
+  transition:.15s;
+}
+.composer button:disabled{opacity:.4;cursor:default}
+.composer button:active{transform:scale(.97)}
+
+/* 记忆面板 */
+.memory{
+  width:330px;flex:none;border-left:1px solid var(--line);background:#191712;
+  display:flex;flex-direction:column;min-height:0;
+}
+.phead{
+  flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px 10px;font-size:13px;letter-spacing:.06em;color:var(--muted);
+}
+.phead b{color:var(--text);font-size:13px;font-weight:600;letter-spacing:.08em}
+.phead .x{
+  display:none;background:none;border:none;color:var(--muted);font-size:22px;
+  line-height:1;cursor:pointer;padding:0 4px;
+}
+.pbody{flex:1;overflow-y:auto;padding:0 14px 14px}
+.pbody::-webkit-scrollbar{width:6px}
+.pbody::-webkit-scrollbar-thumb{background:#332e24;border-radius:3px}
+
+.sect{font-size:11px;letter-spacing:.12em;color:var(--muted);margin:16px 0 8px}
+.sect:first-child{margin-top:4px}
+.sect.pending{color:var(--gold)}
+
+.mem{
+  border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:7px;
+  background:var(--card);animation:in .3s both;
+}
+.mem.p{border-color:#4b3e21;background:#221e14}
+.mem .kind{font-size:10.5px;color:var(--muted);letter-spacing:.06em;display:block;margin-bottom:3px}
+.mem .txt{font-size:13px;line-height:1.55;color:#ded7c7}
+.mem .row{display:flex;gap:7px;margin-top:8px}
+.mem button{
+  flex:1;height:28px;border-radius:7px;border:1px solid var(--line);
+  background:var(--card2);color:var(--text);font:inherit;font-size:12.5px;
+  cursor:pointer;transition:.15s;
+}
+.mem button.ok{border-color:#4a5f42;color:#cfe6c6;background:#232a1e}
+.mem button.no{border-color:#4f3733;color:#e0c3bd;background:#2a201d}
+.mem button:active{transform:scale(.97)}
+.pbody .empty{color:#5f5949;font-size:12.5px;padding:6px 2px}
+
+.pfoot{
+  flex:none;border-top:1px solid var(--line);padding:9px 14px;
+  padding-bottom:calc(9px + env(safe-area-inset-bottom));
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:11.5px;color:var(--muted);
+}
+.pfoot a{color:var(--muted);text-decoration:none;border-bottom:1px dotted #4a4437}
+.pfoot a:hover{color:var(--gold)}
+
+/* 移动端：面板变底部抽屉 */
+@media (max-width:879px){
+  .chip{display:inline-flex}
+  .memory{
+    position:fixed;left:0;right:0;bottom:0;width:auto;height:74dvh;
+    border-left:none;border-top:1px solid var(--line);border-radius:18px 18px 0 0;
+    transform:translateY(102%);transition:transform .28s cubic-bezier(.3,.9,.3,1);
+    z-index:9;box-shadow:0 -18px 40px rgba(0,0,0,.5);
+  }
+  .memory.open{transform:none}
+  .phead .x{display:block}
+  .log{padding-bottom:2px}
+}
+@media (min-width:880px){
+  .memory{position:relative;transform:none!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="who">
+      <span class="dot" id="dot"></span>
+      <b>沈砚</b>
+      <span class="sub">记忆网关 · 演示</span>
+      <span class="wchip" id="worldChip" title=""><i></i>实时情境</span>
+    </div>
+    <button class="chip" id="memBtn">记忆闸门 <em id="memCount" class="zero">0</em></button>
+  </header>
+
+  <div class="mockbar" id="mockbar" hidden>
+    <b>演示模式</b> · 回复是固定话术，没有接模型。想看真回答，用桌面上的「启动沈砚演示（真模型）」
+  </div>
+
+  <main class="main">
+    <section class="chat">
+      <div class="log" id="log"></div>
+      <form class="composer" id="composer" autocomplete="off">
+        <textarea id="input" rows="1" maxlength="500" placeholder="跟他说点什么…"></textarea>
+        <button type="submit" id="send">发送</button>
+      </form>
+    </section>
+
+    <aside class="memory" id="panel">
+      <div class="phead">
+        <b>记忆闸门</b>
+        <button class="x" id="closeBtn" aria-label="关闭">×</button>
+      </div>
+      <div class="pbody" id="pbody"></div>
+      <div class="pfoot">
+        <span id="quota">—</span>
+        <a href="/new">换个会话</a>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const log = $('log'), input = $('input'), sendBtn = $('send');
+const panel = $('panel'), pbody = $('pbody'), dot = $('dot');
+let busy = false;
+
+const KIND = {
+  core:'核心设定', correction:'纠错', relationship_anchor:'关系锚点',
+  fiction_event:'故事内事件', user_preference:'偏好'
+};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function atBottom(){
+  return log.scrollHeight - log.scrollTop - log.clientHeight < 120;
+}
+function scrollDown(force){
+  if (force || atBottom()) log.scrollTop = log.scrollHeight;
+}
+
+function addMsg(text, who, force){
+  const el = document.createElement('div');
+  el.className = 'msg ' + who;
+  el.textContent = text;
+  log.appendChild(el);
+  scrollDown(force !== false);
+  return el;
+}
+
+function addTyping(){
+  const el = document.createElement('div');
+  el.className = 'msg bot typing';
+  el.innerHTML = '<i></i><i></i><i></i>';
+  log.appendChild(el);
+  scrollDown(true);
+  return el;
+}
+
+function addSticker(a){
+  const el = document.createElement('div');
+  el.className = 'msg sticker';
+  const img = document.createElement('img');
+  img.src = a.url || ('/stickers/' + a.id + '.png');
+  img.alt = a.caption || '表情';
+  img.loading = 'lazy';
+  img.addEventListener('error', () => el.remove());
+  img.addEventListener('click', () => window.open(img.src, '_blank'));
+  img.style.cursor = 'zoom-in';
+  el.appendChild(img);
+  log.appendChild(el);
+  scrollDown();
+  return el;
+}
+
+function speak(text){
+  try{
+    if (!('speechSynthesis' in window) || !text) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN';
+    u.rate = 1.02;
+    u.pitch = 0.95;
+    speechSynthesis.speak(u);
+  }catch(e){ /* 浏览器不支持就算了，文字还在 */ }
+}
+
+function addVoice(text){
+  const el = document.createElement('div');
+  el.className = 'msg voice';
+  const ic = document.createElement('span');
+  ic.className = 'ic';
+  ic.textContent = '🔊';
+  const pvw = document.createElement('span');
+  pvw.className = 'pvw';
+  pvw.textContent = text.length > 22 ? text.slice(0, 22) + '…' : text;
+  el.append(ic, pvw);
+  el.title = text;
+  el.addEventListener('click', () => speak(text));
+  log.appendChild(el);
+  scrollDown();
+  return el;
+}
+
+async function renderActions(acts){
+  let shown = 0;
+  for (const a of acts){
+    if (!a || !a.type) continue;
+    if (a.type === 'text'){
+      const lines = String(a.text || '').split('\n').map(s => s.trim()).filter(Boolean);
+      for (let i = 0; i < lines.length; i++){
+        addMsg(lines[i], 'bot');
+        shown++;
+        if (i < lines.length - 1) await sleep(240);
+      }
+    } else if (a.type === 'sticker'){
+      addSticker(a);
+      shown++;
+      await sleep(180);
+    } else if (a.type === 'voice'){
+      addVoice(a.text || '');
+      speak(a.text || '');
+      shown++;
+      await sleep(180);
+    }
+  }
+  if (!shown) addMsg('……', 'bot');
+}
+
+function showWorld(context){
+  const chip = $('worldChip');
+  chip.classList.add('on');
+  chip.title = String(context || '').replace(/^【[^】]*】\s*/, '').trim();
+}
+
+async function api(path, opts){
+  const r = await fetch(path, {
+    headers: {'Content-Type':'application/json'},
+    ...opts
+  });
+  if (!r.ok){
+    let detail = 'HTTP ' + r.status;
+    try { detail = (await r.json()).detail || detail; } catch(e){}
+    throw new Error(detail);
+  }
+  return r.json();
+}
+
+// 浏览器原生报错是英文的（Failed to fetch），对普通人没有任何信息量
+function friendlyError(e){
+  const msg = String((e && e.message) || '');
+  if (/Failed to fetch|NetworkError|Load failed|network/i.test(msg)){
+    return '连不上本地服务。\n是不是那个黑窗口关掉了？双击「启动演示.bat」重新开一下，再刷新这个页面。';
+  }
+  return msg || '出错了，再试一次。';
+}
+
+function renderMemory(d){
+  const pending = d.pending || [], approved = d.approved || [];
+  $('mockbar').hidden = !d.mock;
+  const badge = $('memCount');
+  badge.textContent = pending.length;
+  badge.className = pending.length ? '' : 'zero';
+
+  let html = '';
+  if (pending.length){
+    html += '<div class="sect pending">待审核 · 需要你点头</div>';
+    for (const m of pending){
+      html += `<div class="mem p" data-id="${m.id}">
+        <span class="kind">#${m.id} ${KIND[m.kind] || m.kind}</span>
+        <div class="txt">${esc(m.content)}</div>
+        <div class="row">
+          <button class="ok" data-act="confirm" data-id="${m.id}">确认</button>
+          <button class="no" data-act="reject" data-id="${m.id}">拒绝</button>
+        </div>
+      </div>`;
+    }
+  } else {
+    html += '<div class="sect pending">待审核</div>';
+    html += '<div class="empty">还没有候选。聊两轮，模型会从这里提出它想记住的事。</div>';
+  }
+
+  html += '<div class="sect">已进入正史 · ' + approved.length + ' 条</div>';
+  if (!approved.length){
+    html += '<div class="empty">暂无。</div>';
+  } else {
+    for (const m of approved){
+      html += `<div class="mem">
+        <span class="kind">#${m.id} ${KIND[m.kind] || m.kind}</span>
+        <div class="txt">${esc(m.content)}</div>
+      </div>`;
+    }
+  }
+  pbody.innerHTML = html;
+
+  const q = d.quota || {};
+  $('quota').textContent = q.session_left == null
+    ? '—'
+    : `本会话还剩 ${q.session_left} 条`;
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+  ));
+}
+
+async function refresh(){
+  try{
+    const d = await api('/api/memory');
+    renderMemory(d);
+    dot.className = 'dot ok';
+    return d;
+  }catch(e){
+    dot.className = 'dot bad';
+    return null;
+  }
+}
+
+async function send(){
+  const text = input.value.trim();
+  if (!text || busy) return;
+  input.value = '';
+  input.style.height = 'auto';
+  addMsg(text, 'me');
+  busy = true;
+  sendBtn.disabled = true;
+
+  const t = addTyping();
+  try{
+    const d = await api('/api/chat', {method:'POST', body: JSON.stringify({text})});
+    t.remove();
+    await renderActions(Array.isArray(d.actions) ? d.actions : []);
+    if (d.context) showWorld(d.context);
+    await refresh();
+    dot.className = 'dot ok';
+  }catch(e){
+    t.remove();
+    addMsg(friendlyError(e), 'err');
+  }finally{
+    busy = false;
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+pbody.addEventListener('click', async ev => {
+  const btn = ev.target.closest('button[data-act]');
+  if (!btn) return;
+  const id = btn.dataset.id, action = btn.dataset.act;
+  pbody.querySelectorAll('button').forEach(b => b.disabled = true);
+  try{
+    const d = await api('/api/memory/' + id, {method:'POST', body: JSON.stringify({action})});
+    renderMemory(d);
+    if (d.message) addMsg(d.message, 'sys');
+  }catch(e){
+    addMsg(friendlyError(e), 'err');
+    refresh();
+  }
+});
+
+$('composer').addEventListener('submit', ev => { ev.preventDefault(); send(); });
+
+input.addEventListener('keydown', ev => {
+  if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing){
+    ev.preventDefault();
+    send();
+  }
+});
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+});
+
+$('memBtn').addEventListener('click', () => panel.classList.toggle('open'));
+$('closeBtn').addEventListener('click', () => panel.classList.remove('open'));
+
+(async function boot(){
+  const d = await refresh();
+  if (!d){
+    addMsg('连不上本地服务。\n双击「启动演示.bat」把服务开起来，再刷新这个页面。', 'err');
+    return;
+  }
+  if (d && d.turns > 0){
+    addMsg('（这个会话之前聊过 ' + d.turns + ' 轮，我还记着。）', 'sys');
+  } else {
+    const intro = [
+      '嗯，来了。',
+      '我是沈砚。',
+      '旁边那个是记忆闸门——我记住的事都在里面，但要不要进正史，你说了算。',
+    ];
+    for (const line of intro){
+      addMsg(line, 'bot');
+      await sleep(520);
+    }
+    addMsg('先随便说点什么吧。', 'bot');
+  }
+  input.focus();
+})();
+</script>
+</body>
+</html>

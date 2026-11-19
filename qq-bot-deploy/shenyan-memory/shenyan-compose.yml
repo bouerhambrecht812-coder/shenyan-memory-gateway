@@ -1,0 +1,31 @@
+# Add this as a second compose file alongside the official AstrBot + NapCat astrbot.yml.
+# This service has NO exposed host ports. Only AstrBot on the Docker network can reach it.
+services:
+  shenyan-memory:
+    build:
+      context: ./shenyan-gateway
+    container_name: shenyan-memory
+    restart: unless-stopped
+    env_file:
+      - .env.shenyan
+    environment:
+      TZ: Asia/Singapore
+      DATA_DIR: /data
+      PERSONA_DIR: /app/character
+      ASSETS_DIR: /app/assets
+    volumes:
+      - ./shenyan-data:/data
+      - ./shenyan-persona:/app/character:ro
+      # 表情素材。world server 随网关进程起，不需要额外容器或端口。
+      - ./shenyan-assets:/app/assets:ro
+    networks:
+      - astrbot_network
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=4)"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+
+# 'astrbot_network' is defined in the official NapCat AstrBot compose file.
