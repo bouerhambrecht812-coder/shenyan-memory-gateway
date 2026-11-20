@@ -1,0 +1,6 @@
+.env.shenyan
+shenyan-data/
+__pycache__/
+.runtime/
+.local-data/
+.run.*

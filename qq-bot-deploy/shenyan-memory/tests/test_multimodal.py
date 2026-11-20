@@ -37,6 +37,9 @@ def install_stubs():
         def on_event(self, *a, **k):
             return lambda fn: fn
 
+        def middleware(self, *a, **k):
+            return lambda fn: fn
+
         def mount(self, *a, **k):
             return None
 

@@ -1,0 +1,21 @@
+# 依赖和运行数据，不进仓库
+.runtime/
+.local-data/
+shenyan-data/
+__pycache__/
+*.pyc
+
+# 密钥
+.env
+.env.shenyan
+.env.*
+
+# 数据库
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# 系统垃圾
+.DS_Store
+Thumbs.db
+desktop.ini

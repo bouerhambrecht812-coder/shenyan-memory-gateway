@@ -12,6 +12,7 @@ import asyncio
 import json
 import os
 import sys
+import time
 from collections import deque
 from pathlib import Path
 
@@ -32,6 +33,9 @@ class StdioMCPSession:
         self.cwd = cwd
         self.env = env
         self.timeout = timeout
+        # 服务器如果一直起不来，别每个请求都去拉一次进程
+        self.restart_cooldown = float(os.getenv('MCP_RESTART_COOLDOWN', '30'))
+        self._last_fail_at = 0.0
 
         self._proc: asyncio.subprocess.Process | None = None
         self._reader_task: asyncio.Task | None = None
@@ -46,6 +50,17 @@ class StdioMCPSession:
     async def start(self) -> None:
         if self._proc and self._proc.returncode is None:
             return
+        now = time.monotonic()
+        if self._last_fail_at and now - self._last_fail_at < self.restart_cooldown:
+            raise MCPUnavailable(f'{self.name} 刚启动失败过，{int(self.restart_cooldown)} 秒内不重试')
+        try:
+            await self._spawn()
+        except Exception:
+            self._last_fail_at = time.monotonic()
+            self._ready = False
+            raise
+
+    async def _spawn(self) -> None:
         await self.close()
         env = dict(os.environ)
         if self.env:
@@ -68,6 +83,7 @@ class StdioMCPSession:
             'clientInfo': {'name': 'shenyan-memory', 'version': '1.0.0'},
         })
         self._ready = bool(info)
+        self._last_fail_at = 0.0
 
         # 按协议补一条 initialized 通知（无 id，不期待回复）
         await self._notify('notifications/initialized', {})

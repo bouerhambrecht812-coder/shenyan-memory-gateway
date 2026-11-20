@@ -1,0 +1,30 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # 四套测试都只用标准库：用假模块顶替 fastapi / openai / httpx，
+      # 所以不需要 pip install，runner 起来就能跑。
+      - name: 动作协议 + MCP 往返 + 端到端
+        run: python qq-bot-deploy/shenyan-memory/tests/test_multimodal.py
+
+      - name: 主动消息调度与冷却
+        run: python qq-bot-deploy/shenyan-memory/tests/test_proactive.py
+
+      - name: 会话隔离（访客之间互不可见）
+        run: python web-demo/tests/test_isolation.py
+
+      - name: 代理层指令白名单与限流
+        run: python web-demo/tests/test_proxy_guard.py

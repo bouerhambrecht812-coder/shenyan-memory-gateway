@@ -37,7 +37,7 @@ def load():
     fastapi.Response = type('Response', (), {'__init__': lambda self, *a, **k: None})
 
     responses = types.ModuleType('fastapi.responses')
-    for name in ('HTMLResponse', 'JSONResponse', 'RedirectResponse'):
+    for name in ('HTMLResponse', 'JSONResponse', 'RedirectResponse', 'FileResponse'):
         setattr(responses, name, type(name, (), {'__init__': lambda self, *a, **k: None}))
     fastapi.responses = responses
 

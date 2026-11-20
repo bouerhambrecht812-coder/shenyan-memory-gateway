@@ -102,6 +102,15 @@ class WorldContext:
             'servers': self.pool.status(),
         }
 
+    async def ensure_alive(self) -> None:
+        """定时体检：子进程死了就拉起来，活着就什么都不做。"""
+        for session in self.pool.sessions:
+            try:
+                if not session.ready:
+                    await session.start()
+            except Exception as ex:
+                print(f'MCP {session.name} 重启失败：{type(ex).__name__}')
+
 
 async def self_check() -> None:
     """命令行自检：python world.py"""

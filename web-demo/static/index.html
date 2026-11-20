@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>沈砚 · 记忆网关演示</title>
+<meta name="description" content="给 AI 角色用的长期记忆层：记忆自持、写入要人点头、换一个 Base URL 就能接入。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="沈砚记忆网关｜给 AI 角色用的长期记忆层">
+<meta property="og:description" content="记忆自持 · 写入要人点头 · 换一个 Base URL 就能接入">
+<meta property="og:image" content="__OG_BASE__/og.png">
+<meta property="og:url" content="__OG_BASE__/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
 <style>
 :root{
   --bg:#14130f; --card:#1d1b15; --card2:#262218; --line:#312c22;
@@ -27,6 +36,7 @@ body{
 .who{display:flex;align-items:center;gap:8px;min-width:0}
 .who b{font-size:16px;letter-spacing:.04em}
 .who .sub{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acts{display:flex;align-items:center;gap:8px;flex:none}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none;transition:.3s}
 .dot.ok{background:var(--green);box-shadow:0 0 0 3px rgba(122,160,111,.15)}
 .dot.bad{background:var(--red)}
@@ -100,6 +110,36 @@ body{
 }
 .mockbar[hidden]{display:none}
 .mockbar b{font-weight:600;color:#f0d9a0}
+
+/* 怎么玩 */
+.helpchip{
+  display:inline-flex;align-items:center;height:30px;padding:0 11px;
+  border-radius:15px;border:1px solid var(--line);background:var(--card);
+  color:var(--muted);font-size:12.5px;cursor:pointer;font-family:inherit;
+}
+.helpchip:hover{color:var(--text);border-color:#4a4130}
+
+/* 首次进入的引导 */
+.onboard{
+  position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+  background:rgba(12,11,8,.72);backdrop-filter:blur(3px);padding:22px;
+}
+.onboard[hidden]{display:none}
+.ob-card{
+  width:100%;max-width:400px;background:#1e1b15;border:1px solid #3a3327;
+  border-radius:18px;padding:26px 24px 20px;box-shadow:0 24px 60px rgba(0,0,0,.55);
+  animation:in .26s cubic-bezier(.22,.8,.3,1) both;
+}
+.ob-kicker{font-size:11px;letter-spacing:.22em;color:var(--gold);margin-bottom:16px}
+.ob-card ol{margin:0 0 16px;padding-left:20px;color:var(--text);font-size:14.5px;line-height:1.9}
+.ob-card li{margin-bottom:6px}
+.ob-card li b{color:#f2ead9}
+.ob-note{font-size:12.5px;color:var(--muted);line-height:1.75;margin:0 0 20px}
+.ob-card button{
+  width:100%;height:42px;border:none;border-radius:11px;background:var(--gold);
+  color:#201d14;font:inherit;font-weight:600;cursor:pointer;
+}
+.ob-card button:active{transform:scale(.98)}
 
 .typing{display:flex;gap:4px;padding:13px}
 .typing i{
@@ -206,7 +246,10 @@ body{
       <span class="sub">记忆网关 · 演示</span>
       <span class="wchip" id="worldChip" title=""><i></i>实时情境</span>
     </div>
-    <button class="chip" id="memBtn">记忆闸门 <em id="memCount" class="zero">0</em></button>
+    <div class="acts">
+      <button class="helpchip" id="helpBtn">怎么玩</button>
+      <button class="chip" id="memBtn">记忆闸门 <em id="memCount" class="zero">0</em></button>
+    </div>
   </header>
 
   <div class="mockbar" id="mockbar" hidden>
@@ -236,11 +279,52 @@ body{
   </main>
 </div>
 
+<div class="onboard" id="onboard" hidden>
+  <div class="ob-card">
+    <div class="ob-kicker">这个 demo 怎么看</div>
+    <ol>
+      <li><b>随便说一句</b>，比如「今天加班到十点」</li>
+      <li>聊两轮，右边会冒出<b>「待审记忆」</b></li>
+      <li>点「确认」，再问它同一件事，它记得住</li>
+    </ol>
+    <p class="ob-note">右边那栏是记忆闸门：它想记住的东西进不了正史，得你点头才行。</p>
+    <button id="obClose">知道了</button>
+  </div>
+</div>
+
 <script>
 const $ = id => document.getElementById(id);
 const log = $('log'), input = $('input'), sendBtn = $('send');
 const panel = $('panel'), pbody = $('pbody'), dot = $('dot');
 let busy = false;
+const OB_KEY = 'sy_onboard_v1';
+
+function openOnboard(){ $('onboard').hidden = false; }
+function closeOnboard(){
+  $('onboard').hidden = true;
+  try { localStorage.setItem(OB_KEY, '1'); } catch (e) {}
+}
+let lastQuota = null;
+let lastUsage = null;
+
+function fmtTokens(n){
+  if (n == null) return '';
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k tokens' : n + ' tokens';
+}
+
+function paintFooter(){
+  const parts = [];
+  if (lastQuota && lastQuota.session_left != null) parts.push('本会话还剩 ' + lastQuota.session_left + ' 条');
+  if (lastUsage && lastUsage.total_tokens) parts.push(fmtTokens(lastUsage.total_tokens));
+  $('quota').textContent = parts.length ? parts.join(' · ') : '—';
+}
+
+async function updateUsage(){
+  try{
+    lastUsage = await api('/api/usage');
+    paintFooter();
+  }catch(e){ /* 老网关没有这个接口，忽略 */ }
+}
 
 const KIND = {
   core:'核心设定', correction:'纠错', relationship_anchor:'关系锚点',
@@ -318,7 +402,7 @@ function addVoice(text){
   return el;
 }
 
-async function renderActions(acts){
+async function renderActions(acts, quiet){
   let shown = 0;
   for (const a of acts){
     if (!a || !a.type) continue;
@@ -327,20 +411,35 @@ async function renderActions(acts){
       for (let i = 0; i < lines.length; i++){
         addMsg(lines[i], 'bot');
         shown++;
-        if (i < lines.length - 1) await sleep(240);
+        if (!quiet && i < lines.length - 1) await sleep(240);
       }
     } else if (a.type === 'sticker'){
       addSticker(a);
       shown++;
-      await sleep(180);
+      if (!quiet) await sleep(180);
     } else if (a.type === 'voice'){
       addVoice(a.text || '');
       speak(a.text || '');
       shown++;
-      await sleep(180);
+      if (!quiet) await sleep(180);
     }
   }
   if (!shown) addMsg('……', 'bot');
+}
+
+function renderHistory(h){
+  for (const t of (h.turns || [])){
+    if (t.user_text) addMsg(t.user_text, 'me', false);
+    const lines = String(t.reply_text || '').split('\n').map(s => s.trim()).filter(Boolean);
+    for (const line of lines) addMsg(line, 'bot', false);
+  }
+  for (const p of (h.proactive || [])){
+    const divider = document.createElement('div');
+    divider.className = 'msg sys';
+    divider.textContent = '他先开口的 · ' + String(p.created_at || '').slice(5, 16);
+    log.appendChild(divider);
+    renderActions(p.actions || [], true);
+  }
 }
 
 function showWorld(context){
@@ -409,10 +508,8 @@ function renderMemory(d){
   }
   pbody.innerHTML = html;
 
-  const q = d.quota || {};
-  $('quota').textContent = q.session_left == null
-    ? '—'
-    : `本会话还剩 ${q.session_left} 条`;
+  lastQuota = d.quota || {};
+  paintFooter();
 }
 
 function esc(s){
@@ -449,6 +546,7 @@ async function send(){
     await renderActions(Array.isArray(d.actions) ? d.actions : []);
     if (d.context) showWorld(d.context);
     await refresh();
+    updateUsage();
     dot.className = 'dot ok';
   }catch(e){
     t.remove();
@@ -490,6 +588,8 @@ input.addEventListener('input', () => {
 
 $('memBtn').addEventListener('click', () => panel.classList.toggle('open'));
 $('closeBtn').addEventListener('click', () => panel.classList.remove('open'));
+$('obClose').addEventListener('click', closeOnboard);
+$('helpBtn').addEventListener('click', openOnboard);
 
 (async function boot(){
   const d = await refresh();
@@ -497,9 +597,26 @@ $('closeBtn').addEventListener('click', () => panel.classList.remove('open'));
     addMsg('连不上本地服务。\n双击「启动演示.bat」把服务开起来，再刷新这个页面。', 'err');
     return;
   }
-  if (d && d.turns > 0){
-    addMsg('（这个会话之前聊过 ' + d.turns + ' 轮，我还记着。）', 'sys');
+
+  let hist = null;
+  try { hist = await api('/api/history'); } catch (e) { /* 老版本网关没有这个接口 */ }
+  updateUsage();
+  const turns = (hist && hist.turns) || [];
+  const proactive = (hist && hist.proactive) || [];
+
+  if (turns.length || proactive.length){
+    if (turns.length){
+      const head = document.createElement('div');
+      head.className = 'msg sys';
+      head.textContent = '以上是之前的对话';
+      log.insertBefore(head, log.firstChild);
+    }
+    renderHistory({turns, proactive});
+    log.scrollTop = log.scrollHeight;
   } else {
+    let seen = '';
+    try { seen = localStorage.getItem(OB_KEY) || ''; } catch (e) { seen = '1'; }
+    if (!seen) openOnboard();
     const intro = [
       '嗯，来了。',
       '我是沈砚。',

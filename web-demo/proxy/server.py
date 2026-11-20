@@ -20,7 +20,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 GATEWAY_URL = os.getenv('GATEWAY_URL', 'http://shenyan-memory:8000').rstrip('/')
 GATEWAY_KEY = os.getenv('GATEWAY_KEY', '').strip()
@@ -169,6 +169,26 @@ async def health():
     return {'ok': await gateway_ok(), 'gateway': GATEWAY_URL}
 
 
+@app.get('/favicon.ico')
+@app.get('/favicon.png')
+async def favicon():
+    path = STATIC_DIR / 'favicon.png'
+    if not path.exists():
+        raise HTTPException(404, 'not found')
+    return FileResponse(path, media_type='image/png',
+                        headers={'Cache-Control': 'public, max-age=86400'})
+
+
+@app.get('/og.png')
+async def og_image():
+    """分享卡片。微信 / 飞书 / 推特抓取 og:image 时来取这张。"""
+    path = STATIC_DIR / 'og.png'
+    if not path.exists():
+        raise HTTPException(404, 'not found')
+    return FileResponse(path, media_type='image/png',
+                        headers={'Cache-Control': 'public, max-age=86400'})
+
+
 @app.get('/')
 async def index(request: Request):
     if not authorized(request):
@@ -178,7 +198,10 @@ async def index(request: Request):
             resp.set_cookie(PASS_COOKIE, PASSCODE, max_age=30 * 86400, httponly=True, samesite='lax')
             return resp
         return HTMLResponse(read_page('gate.html'), status_code=401)
-    return HTMLResponse(read_page('index.html'), headers={'Cache-Control': 'no-store'})
+    # og:image 要用绝对地址，这里按当前请求的主机名补上，换域名不用改文件
+    base = str(request.base_url).rstrip('/')
+    html = read_page('index.html').replace('__OG_BASE__', base)
+    return HTMLResponse(html, headers={'Cache-Control': 'no-store'})
 
 
 @app.get('/new')
@@ -242,6 +265,52 @@ async def sticker(name: str):
         raise HTTPException(404, 'not found')
     return Response(content=r.content, media_type='image/png',
                     headers={'Cache-Control': 'public, max-age=86400'})
+
+
+async def fetch_history(sid: str) -> dict:
+    empty = {'turns': [], 'proactive': []}
+    if not GATEWAY_KEY:
+        return empty
+    try:
+        r = await client.get(
+            f'{GATEWAY_URL}/v1/demo/history',
+            headers={'Authorization': f'Bearer {GATEWAY_KEY}', 'X-Demo-Session': sid},
+        )
+        return r.json() if r.status_code == 200 else empty
+    except Exception:
+        return empty
+
+
+async def fetch_usage(sid: str) -> dict:
+    if not GATEWAY_KEY:
+        return {}
+    try:
+        r = await client.get(
+            f'{GATEWAY_URL}/v1/demo/usage',
+            headers={'Authorization': f'Bearer {GATEWAY_KEY}', 'X-Demo-Session': sid},
+        )
+        return r.json() if r.status_code == 200 else {}
+    except Exception:
+        return {}
+
+
+@app.get('/api/usage')
+async def usage(request: Request):
+    """本会话的用量：轮次、token、记忆条数。"""
+    if not authorized(request):
+        raise HTTPException(403, '需要邀请码。')
+    sid, new = sid_of(request)
+    return with_session(JSONResponse(await fetch_usage(sid)), sid, new)
+
+
+@app.get('/api/history')
+async def history(request: Request):
+    """历史对话 + 未投递的主动消息。取完即标记已读。"""
+    if not authorized(request):
+        raise HTTPException(403, '需要邀请码。')
+    sid, new = sid_of(request)
+    data = await fetch_history(sid)
+    return with_session(JSONResponse(data), sid, new)
 
 
 async def fetch_memory(sid: str) -> dict:
