@@ -209,6 +209,7 @@ body{
 .mem button.no{border-color:#4f3733;color:#e0c3bd;background:#2a201d}
 .mem button:active{transform:scale(.97)}
 .pbody .empty{color:#5f5949;font-size:12.5px;padding:6px 2px}
+.pnote{color:#5f5949;font-size:11.5px;line-height:1.65;margin-top:10px;padding-top:9px;border-top:1px dashed #2c2820}
 
 .pfoot{
   flex:none;border-top:1px solid var(--line);padding:9px 14px;
@@ -339,6 +340,7 @@ const I18N = {
     pending: 'Pending · needs your approval',
     pending_empty: 'Nothing yet. Chat for two turns and the model will propose something worth keeping.',
     approved: 'In canon', approved_empty: 'Nothing yet.',
+    canon_note: 'Canon entries are stored in the original language — that is the record, not a translation.',
     confirm: 'Confirm', reject: 'Reject',
     quota_left: '{n} messages left in this session', switch: 'New session',
     mock_b: 'Demo mode', mock_t: 'Canned replies — no model attached.',
@@ -576,6 +578,7 @@ function renderMemory(d){
       </div>`;
     }
   }
+  if (LANG === 'en') html += '<div class="pnote">' + t('canon_note') + '</div>';
   pbody.innerHTML = html;
 
   lastQuota = d.quota || {};
@@ -611,7 +614,7 @@ async function send(){
 
   const t = addTyping();
   try{
-    const d = await api('/api/chat', {method:'POST', body: JSON.stringify({text})});
+    const d = await api('/api/chat', {method:'POST', body: JSON.stringify({text, lang: LANG})});
     t.remove();
     await renderActions(Array.isArray(d.actions) ? d.actions : []);
     if (d.context) showWorld(d.context);

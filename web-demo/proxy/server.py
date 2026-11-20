@@ -232,14 +232,16 @@ async def forward(sid: str, text: str) -> str:
         raise HTTPException(502, '记忆网关返回了无法解析的内容。')
 
 
-async def forward_actions(sid: str, text: str) -> dict:
+async def forward_actions(sid: str, text: str, lang: str = '') -> dict:
     """走 /v1/reply，直接拿动作列表（文字 / 表情 / 语音）。"""
     if not GATEWAY_KEY:
         raise HTTPException(503, '演示服务尚未配置 GATEWAY_KEY。')
     try:
         r = await client.post(
             f'{GATEWAY_URL}/v1/reply',
-            headers={'Authorization': f'Bearer {GATEWAY_KEY}', 'X-Demo-Session': sid},
+            headers={'Authorization': f'Bearer {GATEWAY_KEY}',
+                     'X-Demo-Session': sid,
+                     'X-UI-Lang': lang or 'zh'},
             json={'messages': [{'role': 'user', 'content': text}]},
         )
     except httpx.RequestError:
@@ -376,7 +378,7 @@ async def chat(request: Request):
             'reply': '今天的演示额度用完了。\n想继续看，跟我说一声，我给你重开。'}), sid, new)
 
     try:
-        data = await forward_actions(sid, text)
+        data = await forward_actions(sid, text, str(body.get('lang', '') or 'zh'))
     except HTTPException as ex:
         return with_session(JSONResponse({
             'actions': [{'type': 'text', 'text': f'（{ex.detail}）'}],

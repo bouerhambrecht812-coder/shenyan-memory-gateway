@@ -166,7 +166,7 @@ def test_compose():
 
     captured = {}
 
-    async def fake_generate(user_text, context=''):
+    async def fake_generate(user_text, context='', extra_system=''):
         captured['context'] = context
         return '别急\n我记着呢\n[[st:st_06]]'
 

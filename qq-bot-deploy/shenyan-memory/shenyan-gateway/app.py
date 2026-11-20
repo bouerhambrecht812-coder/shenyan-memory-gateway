@@ -691,7 +691,7 @@ async def demo_memory(request: Request):
         SESSION_DB.reset(token)
 
 
-async def compose(user_text):
+async def compose(user_text, lang=''):
     """一轮对话的完整处理：指令 → 情境 → 生成 → 解析动作 → 落库。
 
     返回 (干净文本, 动作列表, 情境文本)。
@@ -703,7 +703,14 @@ async def compose(user_text):
             return command_result, [{'type': 'text', 'text': command_result}], ''
 
         context = '' if internal else await WORLD.snapshot()
-        answer = await generate_reply(user_text, context)
+        extra = ''
+        if str(lang).lower().startswith('en'):
+            # 界面是英文就跟着说英文，但角色和记忆仍然是原来那套
+            extra = ('对方正在使用英文界面。请用英文回复，保持同样的语气、句长和分寸；'
+                     '不要解释你在翻译，也不要把设定原文念出来。')
+        elif lang:
+            extra = '对方正在使用中文界面，请用中文回复。'
+        answer = await generate_reply(user_text, context, extra)
         clean, sticker_ids, voice = action_proto.parse_reply(answer, STICKER_BOOK)
         clean = normalize_qq_reply(clean) or clean or '……'
 
@@ -745,7 +752,7 @@ async def reply(request: Request):
             raise HTTPException(400, '需要一条文本用户消息；此版本暂未转发图片。')
         if len(msg) > 10000:
             raise HTTPException(413, '单条消息过长')
-        clean, acts, context = await compose(msg)
+        clean, acts, context = await compose(msg, request.headers.get('X-UI-Lang', ''))
         return {
             'actions': acts,
             'text': clean,
@@ -923,7 +930,7 @@ async def chat(request: Request):
         if not isinstance(model, str) or len(model) > 100:
             model = 'shenyan'
 
-        clean, acts, context = await compose(msg)
+        clean, acts, context = await compose(msg, request.headers.get('X-UI-Lang', ''))
         resp = response_dict(clean, model)
         # OpenAI 客户端只读 content，动作放在扩展字段里，不认识它的客户端会直接忽略
         resp['x_shenyan'] = {'actions': acts, 'context_used': bool(context)}
