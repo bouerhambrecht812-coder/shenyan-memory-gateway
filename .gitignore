@@ -5,10 +5,12 @@ shenyan-data/
 __pycache__/
 *.pyc
 
-# 密钥
+# 密钥（示例文件要留，别把真 Key 放进仓库）
 .env
 .env.shenyan
 .env.*
+!.env.example
+!.env.shenyan.example
 
 # 数据库
 *.sqlite3
