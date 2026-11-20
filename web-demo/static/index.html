@@ -242,38 +242,39 @@ body{
   <header class="bar">
     <div class="who">
       <span class="dot" id="dot"></span>
-      <b>沈砚</b>
-      <span class="sub">记忆网关 · 演示</span>
-      <span class="wchip" id="worldChip" title=""><i></i>实时情境</span>
+      <b data-i18n="name">沈砚</b>
+      <span class="sub" data-i18n="sub">记忆网关 · 演示</span>
+      <span class="wchip" id="worldChip" title=""><i></i><span data-i18n="context">实时情境</span></span>
     </div>
     <div class="acts">
-      <button class="helpchip" id="helpBtn">怎么玩</button>
-      <button class="chip" id="memBtn">记忆闸门 <em id="memCount" class="zero">0</em></button>
+      <button class="helpchip" id="langBtn">EN</button>
+      <button class="helpchip" id="helpBtn" data-i18n="help">怎么玩</button>
+      <button class="chip" id="memBtn"><span data-i18n="gate">记忆闸门</span> <em id="memCount" class="zero">0</em></button>
     </div>
   </header>
 
   <div class="mockbar" id="mockbar" hidden>
-    <b>演示模式</b> · 回复是固定话术，没有接模型。想看真回答，用桌面上的「启动沈砚演示（真模型）」
+    <b data-i18n="mock_b">演示模式</b> · <span data-i18n="mock_t">回复是固定话术，没有接模型。</span>
   </div>
 
   <main class="main">
     <section class="chat">
       <div class="log" id="log"></div>
       <form class="composer" id="composer" autocomplete="off">
-        <textarea id="input" rows="1" maxlength="500" placeholder="跟他说点什么…"></textarea>
-        <button type="submit" id="send">发送</button>
+        <textarea id="input" rows="1" maxlength="500" placeholder="跟他说点什么…" data-i18n-ph="placeholder"></textarea>
+        <button type="submit" id="send" data-i18n="send">发送</button>
       </form>
     </section>
 
     <aside class="memory" id="panel">
       <div class="phead">
-        <b>记忆闸门</b>
+        <b data-i18n="gate_title">记忆闸门</b>
         <button class="x" id="closeBtn" aria-label="关闭">×</button>
       </div>
       <div class="pbody" id="pbody"></div>
       <div class="pfoot">
         <span id="quota">—</span>
-        <a href="/new">换个会话</a>
+        <a href="/new" id="newLink" data-i18n="switch">换个会话</a>
       </div>
     </aside>
   </main>
@@ -281,14 +282,14 @@ body{
 
 <div class="onboard" id="onboard" hidden>
   <div class="ob-card">
-    <div class="ob-kicker">这个 demo 怎么看</div>
+    <div class="ob-kicker" data-i18n="ob_kicker">这个 demo 怎么看</div>
     <ol>
-      <li><b>随便说一句</b>，比如「今天加班到十点」</li>
-      <li>聊两轮，右边会冒出<b>「待审记忆」</b></li>
-      <li>点「确认」，再问它同一件事，它记得住</li>
+      <li data-i18n="ob1"><b>随便说一句</b>，比如「今天加班到十点」</li>
+      <li data-i18n="ob2">聊两轮，右边会冒出<b>「待审记忆」</b></li>
+      <li data-i18n="ob3">点「确认」，再问它同一件事，它记得住</li>
     </ol>
-    <p class="ob-note">右边那栏是记忆闸门：它想记住的东西进不了正史，得你点头才行。</p>
-    <button id="obClose">知道了</button>
+    <p class="ob-note" data-i18n="ob_note">右边那栏是记忆闸门：它想记住的东西进不了正史，得你点头才行。</p>
+    <button id="obClose" data-i18n="ob_btn">知道了</button>
   </div>
 </div>
 
@@ -298,6 +299,77 @@ const log = $('log'), input = $('input'), sendBtn = $('send');
 const panel = $('panel'), pbody = $('pbody'), dot = $('dot');
 let busy = false;
 const OB_KEY = 'sy_onboard_v1';
+const LANG_KEY = 'sy_lang';
+
+const I18N = {
+  zh: {
+    langBtn: 'EN',
+    name: '沈砚', sub: '记忆网关 · 演示', context: '实时情境', help: '怎么玩',
+    gate: '记忆闸门', gate_title: '记忆闸门',
+    ob_kicker: '这个 demo 怎么看',
+    ob1: '<b>随便说一句</b>，比如「今天加班到十点」',
+    ob2: '聊两轮，右边会冒出<b>「待审记忆」</b>',
+    ob3: '点「确认」，再问它同一件事，它记得住',
+    ob_note: '右边那栏是记忆闸门：它想记住的东西进不了正史，得你点头才行。',
+    ob_btn: '知道了',
+    placeholder: '跟他说点什么…', send: '发送',
+    pending: '待审核 · 需要你点头',
+    pending_empty: '还没有候选。聊两轮，模型会从这里提出它想记住的事。',
+    approved: '已进入正史', approved_empty: '暂无。',
+    confirm: '确认', reject: '拒绝',
+    quota_left: '本会话还剩 {n} 条', switch: '换个会话',
+    mock_b: '演示模式', mock_t: '回复是固定话术，没有接模型。',
+    hist_head: '以上是之前的对话', proactive_head: '他先开口的',
+    netdown: '连不上本地服务。\n检查服务是否还开着，然后刷新这个页面。',
+    generic: '出错了，再试一次。',
+    kinds: { core: '核心设定', correction: '纠错', relationship_anchor: '关系锚点',
+             fiction_event: '故事内事件', user_preference: '偏好' },
+  },
+  en: {
+    langBtn: '中',
+    name: 'Shen Yan', sub: 'Memory Gateway · Demo', context: 'Live context', help: 'How to try',
+    gate: 'Memory gate', gate_title: 'Memory Gate',
+    ob_kicker: 'How to read this demo',
+    ob1: '<b>Say something</b> — e.g. “worked until 10pm again”',
+    ob2: 'After two turns, a <b>pending memory</b> appears on the right',
+    ob3: 'Hit “Confirm”, then ask again — he remembers it',
+    ob_note: 'That panel is the memory gate. Nothing enters the canon until you approve it.',
+    ob_btn: 'Got it',
+    placeholder: 'Say something…', send: 'Send',
+    pending: 'Pending · needs your approval',
+    pending_empty: 'Nothing yet. Chat for two turns and the model will propose something worth keeping.',
+    approved: 'In canon', approved_empty: 'Nothing yet.',
+    confirm: 'Confirm', reject: 'Reject',
+    quota_left: '{n} messages left in this session', switch: 'New session',
+    mock_b: 'Demo mode', mock_t: 'Canned replies — no model attached.',
+    hist_head: 'Earlier in this conversation', proactive_head: 'He spoke first',
+    netdown: 'Cannot reach the local service.\nCheck that it is still running, then reload this page.',
+    generic: 'Something went wrong. Try again.',
+    kinds: { core: 'Core identity', correction: 'Correction', relationship_anchor: 'Relationship anchor',
+             fiction_event: 'Story event', user_preference: 'Preference' },
+  },
+};
+
+let LANG = 'zh';
+function t(key){ return (I18N[LANG] && I18N[LANG][key]) || I18N.zh[key] || key; }
+function tvar(key, vars){
+  let s = t(key);
+  for (const k in vars) s = s.replace('{' + k + '}', vars[k]);
+  return s;
+}
+function kindLabel(kind){ return (I18N[LANG].kinds || {}[kind]) || (I18N.zh.kinds || {})[kind] || kind; }
+
+function applyLang(lang){
+  LANG = I18N[lang] ? lang : 'zh';
+  try { localStorage.setItem(LANG_KEY, LANG); } catch (e) {}
+  document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
+  const ph = document.querySelector('[data-i18n-ph]');
+  if (ph) ph.placeholder = t(ph.dataset.i18nPh);
+  $('langBtn').textContent = t('langBtn');
+  if (lastMemory) renderMemory(lastMemory);
+  paintFooter();
+}
 
 function openOnboard(){ $('onboard').hidden = false; }
 function closeOnboard(){
@@ -306,6 +378,7 @@ function closeOnboard(){
 }
 let lastQuota = null;
 let lastUsage = null;
+let lastMemory = null;
 
 function fmtTokens(n){
   if (n == null) return '';
@@ -314,7 +387,7 @@ function fmtTokens(n){
 
 function paintFooter(){
   const parts = [];
-  if (lastQuota && lastQuota.session_left != null) parts.push('本会话还剩 ' + lastQuota.session_left + ' 条');
+  if (lastQuota && lastQuota.session_left != null) parts.push(tvar('quota_left', { n: lastQuota.session_left }));
   if (lastUsage && lastUsage.total_tokens) parts.push(fmtTokens(lastUsage.total_tokens));
   $('quota').textContent = parts.length ? parts.join(' · ') : '—';
 }
@@ -326,10 +399,6 @@ async function updateUsage(){
   }catch(e){ /* 老网关没有这个接口，忽略 */ }
 }
 
-const KIND = {
-  core:'核心设定', correction:'纠错', relationship_anchor:'关系锚点',
-  fiction_event:'故事内事件', user_preference:'偏好'
-};
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function atBottom(){
@@ -436,7 +505,7 @@ function renderHistory(h){
   for (const p of (h.proactive || [])){
     const divider = document.createElement('div');
     divider.className = 'msg sys';
-    divider.textContent = '他先开口的 · ' + String(p.created_at || '').slice(5, 16);
+    divider.textContent = t('proactive_head') + ' · ' + String(p.created_at || '').slice(5, 16);
     log.appendChild(divider);
     renderActions(p.actions || [], true);
   }
@@ -465,12 +534,13 @@ async function api(path, opts){
 function friendlyError(e){
   const msg = String((e && e.message) || '');
   if (/Failed to fetch|NetworkError|Load failed|network/i.test(msg)){
-    return '连不上本地服务。\n是不是那个黑窗口关掉了？双击「启动演示.bat」重新开一下，再刷新这个页面。';
+    return t('netdown');
   }
-  return msg || '出错了，再试一次。';
+  return msg || t('generic');
 }
 
 function renderMemory(d){
+  lastMemory = d;
   const pending = d.pending || [], approved = d.approved || [];
   $('mockbar').hidden = !d.mock;
   const badge = $('memCount');
@@ -479,29 +549,29 @@ function renderMemory(d){
 
   let html = '';
   if (pending.length){
-    html += '<div class="sect pending">待审核 · 需要你点头</div>';
+    html += '<div class="sect pending">' + t('pending') + '</div>';
     for (const m of pending){
       html += `<div class="mem p" data-id="${m.id}">
-        <span class="kind">#${m.id} ${KIND[m.kind] || m.kind}</span>
+        <span class="kind">#${m.id} ${esc(kindLabel(m.kind))}</span>
         <div class="txt">${esc(m.content)}</div>
         <div class="row">
-          <button class="ok" data-act="confirm" data-id="${m.id}">确认</button>
-          <button class="no" data-act="reject" data-id="${m.id}">拒绝</button>
+          <button class="ok" data-act="confirm" data-id="${m.id}">${t('confirm')}</button>
+          <button class="no" data-act="reject" data-id="${m.id}">${t('reject')}</button>
         </div>
       </div>`;
     }
   } else {
-    html += '<div class="sect pending">待审核</div>';
-    html += '<div class="empty">还没有候选。聊两轮，模型会从这里提出它想记住的事。</div>';
+    html += '<div class="sect pending">' + t('gate_title') + '</div>';
+    html += '<div class="empty">' + t('pending_empty') + '</div>';
   }
 
-  html += '<div class="sect">已进入正史 · ' + approved.length + ' 条</div>';
+  html += '<div class="sect">' + t('approved') + ' · ' + approved.length + '</div>';
   if (!approved.length){
-    html += '<div class="empty">暂无。</div>';
+    html += '<div class="empty">' + t('approved_empty') + '</div>';
   } else {
     for (const m of approved){
       html += `<div class="mem">
-        <span class="kind">#${m.id} ${KIND[m.kind] || m.kind}</span>
+        <span class="kind">#${m.id} ${esc(kindLabel(m.kind))}</span>
         <div class="txt">${esc(m.content)}</div>
       </div>`;
     }
@@ -590,11 +660,22 @@ $('memBtn').addEventListener('click', () => panel.classList.toggle('open'));
 $('closeBtn').addEventListener('click', () => panel.classList.remove('open'));
 $('obClose').addEventListener('click', closeOnboard);
 $('helpBtn').addEventListener('click', openOnboard);
+$('langBtn').addEventListener('click', () => applyLang(LANG === 'zh' ? 'en' : 'zh'));
+
+(function initLang(){
+  let saved = '';
+  try { saved = localStorage.getItem(LANG_KEY) || ''; } catch (e) {}
+  if (!saved){
+    const nav = String(navigator.language || 'zh').toLowerCase();
+    saved = nav.indexOf('zh') === 0 ? 'zh' : 'en';
+  }
+  applyLang(saved);
+})();
 
 (async function boot(){
   const d = await refresh();
   if (!d){
-    addMsg('连不上本地服务。\n双击「启动演示.bat」把服务开起来，再刷新这个页面。', 'err');
+    addMsg(t('netdown'), 'err');
     return;
   }
 
@@ -608,7 +689,7 @@ $('helpBtn').addEventListener('click', openOnboard);
     if (turns.length){
       const head = document.createElement('div');
       head.className = 'msg sys';
-      head.textContent = '以上是之前的对话';
+      head.textContent = t('hist_head');
       log.insertBefore(head, log.firstChild);
     }
     renderHistory({turns, proactive});
