@@ -1,4 +1,4 @@
-"""验证主动消息调度：闲置会话能生成一条，且频率闸门有效。"""
+﻿"""验证主动消息调度：闲置会话能生成一条，且频率闸门有效。"""
 import asyncio
 import importlib.util
 import os
@@ -7,7 +7,7 @@ import sys
 import tempfile
 import types
 
-ROOT = pathlib.Path(r"C:\Users\阿吟\Documents\deepseek-harness\default-workspace")
+ROOT = pathlib.Path(__file__).resolve().parents[3]
 GW = ROOT / 'qq-bot-deploy' / 'shenyan-memory' / 'shenyan-gateway' / 'app.py'
 PERSONA = ROOT / 'qq-bot-deploy' / 'shenyan-memory' / 'shenyan-persona'
 ASSETS = ROOT / 'qq-bot-deploy' / 'shenyan-memory' / 'shenyan-assets'

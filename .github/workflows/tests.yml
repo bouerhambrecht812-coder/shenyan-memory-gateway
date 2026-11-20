@@ -5,9 +5,26 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  PYTHONUTF8: '1'
+  PYTHONIOENCODING: utf-8
+
 jobs:
   offline-tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: 动作协议 + MCP 往返 + 端到端
+            path: qq-bot-deploy/shenyan-memory/tests/test_multimodal.py
+          - name: 主动消息调度与冷却
+            path: qq-bot-deploy/shenyan-memory/tests/test_proactive.py
+          - name: 会话隔离（访客之间互不可见）
+            path: web-demo/tests/test_isolation.py
+          - name: 代理层指令白名单与限流
+            path: web-demo/tests/test_proxy_guard.py
+    name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -16,15 +33,17 @@ jobs:
           python-version: '3.12'
 
       # 四套测试都只用标准库：用假模块顶替 fastapi / openai / httpx，
-      # 所以不需要 pip install，runner 起来就能跑。
-      - name: 动作协议 + MCP 往返 + 端到端
-        run: python qq-bot-deploy/shenyan-memory/tests/test_multimodal.py
-
-      - name: 主动消息调度与冷却
-        run: python qq-bot-deploy/shenyan-memory/tests/test_proactive.py
-
-      - name: 会话隔离（访客之间互不可见）
-        run: python web-demo/tests/test_isolation.py
-
-      - name: 代理层指令白名单与限流
-        run: python web-demo/tests/test_proxy_guard.py
+      # 所以这里不需要 pip install。
+      # 失败时把最后十几行写成注解，检查页面上直接能看到错在哪。
+      - name: 运行
+        run: |
+          set +e
+          python -u "${{ matrix.path }}" 2>&1 | tee /tmp/out.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            echo "::error::${{ matrix.name }} 失败（退出码 $code）"
+            tail -n 15 /tmp/out.log | while IFS= read -r line; do
+              echo "::error:::${line}"
+            done
+          fi
+          exit "$code"
